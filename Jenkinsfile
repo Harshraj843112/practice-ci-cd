@@ -21,12 +21,14 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    sh '''
+                    // Explicitly use bash to avoid sh compatibility issues
+                    sh '''#!/bin/bash
                         # Check if Node.js is installed
                         if ! command -v node >/dev/null 2>&1; then
                             echo "Installing Node.js..."
                             curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
-                            sudo -S bash nodesetup.sh <<< "jenkins"  # Use -S with a default password, adjust if needed
+                            # Use echo to pipe password to sudo -S
+                            echo "jenkins" | sudo -S bash nodesetup.sh
                             sudo apt-get install -y nodejs
                             rm nodesetup.sh
                         else
@@ -52,7 +54,7 @@ pipeline {
         stage('Build React App') {
             steps {
                 script {
-                    sh '''
+                    sh '''#!/bin/bash
                         rm -rf node_modules package-lock.json || true
                         npm cache clean --force
                         npm install --verbose > npm_install.log 2>&1
