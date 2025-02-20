@@ -4,9 +4,9 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "34.233.123.50"  // Replace with your actual EC2 IP if different
+        EC2_IP = "34.233.123.50"  // Replace with your actual EC2 IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=1024'  // Limit Node memory usage
+        NODE_OPTIONS = '--max-old-space-size=1024'  // Limit Node memory
     }
     
     stages {
@@ -21,16 +21,22 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Ensure Node.js is installed and add swap space if needed
                     sh '''
-                        if ! command -v node &> /dev/null; then
-                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                        # Check if Node.js is installed
+                        if ! command -v node >/dev/null 2>&1; then
+                            echo "Installing Node.js..."
+                            curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
+                            sudo -S bash nodesetup.sh <<< "jenkins"  # Use -S with a default password, adjust if needed
                             sudo apt-get install -y nodejs
+                            rm nodesetup.sh
+                        else
+                            echo "Node.js already installed"
                         fi
                         node --version
                         npm --version
-                        # Add 2GB swap if not present
+                        # Add swap space if not present
                         if [ ! -f /swapfile ]; then
+                            echo "Adding swap space..."
                             sudo fallocate -l 2G /swapfile
                             sudo chmod 600 /swapfile
                             sudo mkswap /swapfile
@@ -46,11 +52,16 @@ pipeline {
         stage('Build React App') {
             steps {
                 script {
-                    // Install dependencies and build with verbose output
-                    sh 'rm -rf node_modules package-lock.json || true'
-                    sh 'npm cache clean --force'
-                    sh 'npm install --verbose > npm_install.log 2>&1'
-                    sh 'npm run build --verbose > npm_build.log 2>&1'
+                    sh '''
+                        rm -rf node_modules package-lock.json || true
+                        npm cache clean --force
+                        npm install --verbose > npm_install.log 2>&1
+                        npm run build --verbose > npm_build.log 2>&1 || { 
+                            echo "Build failed, dumping logs..."
+                            cat npm_build.log
+                            exit 1
+                        }
+                    '''
                 }
             }
         }
@@ -81,7 +92,7 @@ pipeline {
                 sshagent(credentials: ['ec2-ssh-credentials']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} << 'EOF'
-                            if ! command -v docker &> /dev/null; then
+                            if ! command -v docker >/dev/null 2>&1; then
                                 sudo apt update
                                 sudo apt install -y docker.io
                                 sudo systemctl start docker
@@ -103,7 +114,7 @@ pipeline {
         always {
             sh 'docker logout || true'
             cleanWs()
-            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true  // Save logs for debugging
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
         }
         success {
             echo "Build ${env.BUILD_NUMBER} deployed successfully!"
