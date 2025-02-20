@@ -4,9 +4,9 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "34.233.123.50"  // Replace with your actual EC2 IP
+        EC2_IP = "54.144.83.230"  // Replace with your actual EC2 IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=1024'  // Limit Node memory
+        NODE_OPTIONS = '--max-old-space-size=512'  // Fits 1GB RAM + swap
     }
     
     stages {
@@ -21,25 +21,24 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 script {
-                    // Explicitly use bash to avoid sh compatibility issues
                     sh '''#!/bin/bash
-                        # Check if Node.js is installed
+                        # Keep space clean
+                        sudo apt clean
+                        sudo rm -rf /var/lib/jenkins/.npm /var/cache/jenkins/war ~/.cache
+                        sudo find /var/log -type f -exec truncate -s 0 {} \\;
+                        df -h /
+                        # Verify Node.js
                         if ! command -v node >/dev/null 2>&1; then
-                            echo "Installing Node.js..."
                             curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
-                            # Use echo to pipe password to sudo -S
-                            echo "jenkins" | sudo -S bash nodesetup.sh
+                            sudo bash nodesetup.sh
                             sudo apt-get install -y nodejs
                             rm nodesetup.sh
-                        else
-                            echo "Node.js already installed"
                         fi
                         node --version
                         npm --version
-                        # Add swap space if not present
+                        # Ensure swap
                         if [ ! -f /swapfile ]; then
-                            echo "Adding swap space..."
-                            sudo fallocate -l 2G /swapfile
+                            sudo fallocate -l 2G /swapfile || true
                             sudo chmod 600 /swapfile
                             sudo mkswap /swapfile
                             sudo swapon /swapfile
@@ -55,14 +54,23 @@ pipeline {
             steps {
                 script {
                     sh '''#!/bin/bash
-                        rm -rf node_modules package-lock.json || true
+                        # Clean slate
+                        rm -rf node_modules package-lock.json build || true
                         npm cache clean --force
-                        npm install --verbose > npm_install.log 2>&1
+                        df -h /
+                        # Lean install and build
+                        npm install --no-audit --no-fund --verbose > npm_install.log 2>&1 || {
+                            echo "Install failed, dumping logs..."
+                            cat npm_install.log
+                            exit 1
+                        }
                         npm run build --verbose > npm_build.log 2>&1 || { 
                             echo "Build failed, dumping logs..."
                             cat npm_build.log
                             exit 1
                         }
+                        # Immediate cleanup
+                        rm -rf node_modules || true
                     '''
                 }
             }
@@ -114,7 +122,11 @@ pipeline {
     
     post {
         always {
-            sh 'docker logout || true'
+            sh '''
+                docker logout || true
+                docker system prune -f || true
+                rm -rf node_modules build || true
+            '''
             cleanWs()
             archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
         }
