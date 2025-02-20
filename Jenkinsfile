@@ -7,7 +7,7 @@ pipeline {
         EC2_IP = "34.233.123.50"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
     }
-    
+     
     stages {
         stage('Checkout') {
             steps {
