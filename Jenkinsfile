@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
-        DOCKER_IMAGE = "harshraj843112/my-react-app"  // Updated with your DockerHub username (assuming this is your DockerHub username)
+        DOCKER_IMAGE = "harshraj843112/my-react-app"
         EC2_IP = "34.233.123.50"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
     }
@@ -13,13 +13,15 @@ pipeline {
             steps {
                 git branch: 'main', 
                     credentialsId: 'github-credentials',
-                    url: 'https://github.com/Harshraj843112/practice-ci-cd.git'  // Updated GitHub URL
+                    url: 'https://github.com/Harshraj843112/practice-ci-cd.git'
             }
         }
         
         stage('Build Docker Image') {
             steps {
                 script {
+                    // Verify Docker is accessible before building
+                    sh 'docker --version'
                     sh "docker build -t ${DOCKER_IMAGE_TAG} -t ${DOCKER_IMAGE}:latest ."
                 }
             }
@@ -56,7 +58,7 @@ pipeline {
     
     post {
         always {
-            sh 'docker logout'
+            sh 'docker logout || true'
             cleanWs()
         }
         success {
