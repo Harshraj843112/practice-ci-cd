@@ -4,9 +4,9 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "54.144.83.230"  // Replace with your actual EC2 IP
+        EC2_IP = "34.233.123.50"  // Replace with your actual EC2 IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=512'  // Fits 1GB RAM + swap
+        NODE_OPTIONS = '--max-old-space-size=512'
     }
     
     stages {
@@ -22,12 +22,10 @@ pipeline {
             steps {
                 script {
                     sh '''#!/bin/bash
-                        # Keep space clean
                         sudo apt clean
-                        sudo rm -rf /var/lib/jenkins/.npm /var/cache/jenkins/war ~/.cache
+                        sudo rm -rf /var/lib/jenkins/.npm ~/.cache
                         sudo find /var/log -type f -exec truncate -s 0 {} \\;
                         df -h /
-                        # Verify Node.js
                         if ! command -v node >/dev/null 2>&1; then
                             curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
                             sudo bash nodesetup.sh
@@ -36,7 +34,6 @@ pipeline {
                         fi
                         node --version
                         npm --version
-                        # Ensure swap
                         if [ ! -f /swapfile ]; then
                             sudo fallocate -l 2G /swapfile || true
                             sudo chmod 600 /swapfile
@@ -54,11 +51,9 @@ pipeline {
             steps {
                 script {
                     sh '''#!/bin/bash
-                        # Clean slate
                         rm -rf node_modules package-lock.json build || true
                         npm cache clean --force
                         df -h /
-                        # Lean install and build
                         npm install --no-audit --no-fund --verbose > npm_install.log 2>&1 || {
                             echo "Install failed, dumping logs..."
                             cat npm_install.log
@@ -69,7 +64,6 @@ pipeline {
                             cat npm_build.log
                             exit 1
                         }
-                        # Immediate cleanup
                         rm -rf node_modules || true
                     '''
                 }
