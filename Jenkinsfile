@@ -17,10 +17,20 @@ pipeline {
             }
         }
         
+        // Add new stage to build the React app
+        stage('Build React App') {
+            steps {
+                script {
+                    // Install Node.js dependencies and build the app
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
+        }
+        
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Verify Docker is accessible before building
                     sh 'docker --version'
                     sh "docker build -t ${DOCKER_IMAGE_TAG} -t ${DOCKER_IMAGE}:latest ."
                 }
