@@ -2,9 +2,9 @@ pipeline {
     agent any
     
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')  // ID from Jenkins credentials
+        DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')  // Uses 20scse1010239 and PAT
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"  // Deployment target; adjust if incorrect
+        EC2_IP = "98.81.253.133"  // Confirm if this is the deployment target
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -50,7 +50,8 @@ pipeline {
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf node_modules package-lock.json build || true
                     npm cache clean --force
-                    npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    # Temporary fix until package.json is shared
+                    npm install --no-audit --no-fund --omit=dev --no-git --cache ${NPM_CACHE_DIR} --verbose
                     npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
                     ls -la  # Verify build directory exists
@@ -71,9 +72,12 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerHubCredentials', 
                     usernameVariable: 'DOCKER_USERNAME', 
                     passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh 'echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin'
-                    sh "docker push ${DOCKER_IMAGE_TAG}"
-                    sh "docker push ${DOCKER_IMAGE}:latest"
+                    sh '''
+                        echo "Using DockerHub username: $DOCKER_USERNAME"
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        docker push "${DOCKER_IMAGE_TAG}"
+                        docker push "${DOCKER_IMAGE}:latest"
+                    '''
                 }
             }
         }
