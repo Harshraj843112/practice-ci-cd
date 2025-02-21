@@ -15,7 +15,6 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    // Use HTTPS with GitHub credentials
                     withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS_ID, 
                         usernameVariable: 'GIT_USERNAME', 
                         passwordVariable: 'GIT_PASSWORD')]) {
@@ -38,10 +37,17 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m  # Verify memory and swap
-                    # Clean all npm and system caches
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
+                    
+                    # Completely reset npm environment
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
                     npm cache clean --force
                     mkdir -p ${NPM_CACHE_DIR}
+                    
+                    # Force npm to use HTTPS registry
+                    npm config set registry https://registry.npmjs.org/
+                    npm config set fetch-retries 5
+                    npm config set fetch-retry-mintimeout 20000
+                    
                     df -h /  # Check disk space
                     node --version
                     npm --version
@@ -58,27 +64,24 @@ pipeline {
                         export NODE_OPTIONS=--max-old-space-size=128
                         
                         # Ensure clean slate
-                        rm -rf node_modules package-lock.json build || true
+                        rm -rf node_modules package-lock.json build .npmrc || true
                         npm cache clean --force
                         
-                        # Install dependencies with HTTPS only
-                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose || {
-                            echo "NPM install failed, retrying with force..."
-                            npm install --force --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                        }
+                        # Install dependencies from npm registry only
+                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                         
-                        # Ensure react-scripts is installed
+                        # Verify react-scripts is installed
                         if [ ! -f node_modules/react-scripts/package.json ]; then
-                            echo "Installing react-scripts explicitly..."
+                            echo "react-scripts not found, installing explicitly..."
                             npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                         fi
                         
                         # Build the React app
-                        npm run build --production || {
-                            echo "Build failed, reinstalling react-scripts and retrying..."
-                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                            npm run build --production
-                        }
+                        npm run build
+                        if [ ! -d build ]; then
+                            echo "Build directory not created, failing the build..."
+                            exit 1
+                        fi
                         
                         # Clean up
                         rm -rf node_modules || true
