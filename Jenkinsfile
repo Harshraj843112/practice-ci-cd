@@ -1,10 +1,10 @@
 pipeline {
     agent any
-     
+    
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
-        DOCKER_IMAGE = "20scse1010239/my-react-app"  // Aligned with dockerHubCredentials username
-        EC2_IP = "52.23.184.30"
+        DOCKER_IMAGE = "20scse1010239/my-react-app"
+        EC2_IP = "52.23.184.30"  // Your EC2 public IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=2048'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -73,9 +73,12 @@ pipeline {
         
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ['ec2-ssh-credentials']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} << 'EOF'
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-credentials', 
+                    keyFileVariable: 'SSH_KEY', 
+                    usernameVariable: 'SSH_USER')]) {
+                    sh '''
+                        echo "Deploying to EC2 as $SSH_USER"
+                        ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${SSH_USER}@${EC2_IP} << 'EOF'
                             if ! docker ps >/dev/null 2>&1; then
                                 sudo systemctl start docker || true
                             fi
@@ -85,7 +88,7 @@ pipeline {
                             docker run -d --name my-react-app -p 80:80 ${DOCKER_IMAGE_TAG}
                             docker image prune -f
                         EOF
-                    """
+                    '''
                 }
             }
         }
