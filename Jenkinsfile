@@ -31,10 +31,11 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m
-                    # Deep clean all npm-related data
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
-                    npm cache clean --force
-                    npm config set registry https://registry.npmjs.org/
+                    # Total npm reset
+                    sudo rm -rf ~/.npm ~/.cache /usr/lib/node_modules/npm ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
+                    sudo npm cache clean --force
+                    sudo npm config set registry https://registry.npmjs.org/
+                    sudo npm install -g npm@10.8.2  # Reinstall npm to reset
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
@@ -51,9 +52,8 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    # Install dependencies explicitly from npm registry
-                    npm install react@$npm_package_dependencies_react --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    npm install react-dom@$npm_package_dependencies_react_dom --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install react@^18.2.0 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install react-dom@^18.2.0 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm install react-scripts@5.0.1 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
                     ls -la  # Verify build directory exists
