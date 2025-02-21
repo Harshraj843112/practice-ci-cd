@@ -23,19 +23,12 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
-                    if [ ! -f /swapfile ]; then
-                        echo "Swap not set; consider setting it manually."
-                    fi
-                    free -m
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
+                    rm -rf ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force
                     npm config set registry https://registry.npmjs.org/
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
-                    df -h /
-                    node --version
-                    npm --version
                 '''
             }
         }
@@ -45,11 +38,9 @@ pipeline {
                 sh '''#!/bin/bash
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
-                    rm -rf build || true
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose
                     npm run build
                     ls -la  # Verify build directory exists
-                    rm -rf node_modules || true
                 '''
             }
         }
