@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent any  // Uses the master node since no others exist
     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
@@ -20,62 +20,56 @@ pipeline {
         
         stage('Setup Environment') {
             steps {
-                script {
-                    sh '''#!/bin/bash
-                        sudo apt clean
-                        sudo rm -rf /var/lib/jenkins/.npm ~/.cache
-                        sudo find /var/log -type f -exec truncate -s 0 {} \\;
-                        df -h /
-                        if ! command -v node >/dev/null 2>&1; then
-                            curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
-                            sudo bash nodesetup.sh
-                            sudo apt-get install -y nodejs
-                            rm nodesetup.sh
-                        fi
-                        node --version
-                        npm --version
-                        if [ ! -f /swapfile ]; then
-                            sudo fallocate -l 2G /swapfile || true
-                            sudo chmod 600 /swapfile
-                            sudo mkswap /swapfile
-                            sudo swapon /swapfile
-                            echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-                        fi
-                        free -m
-                    '''
-                }
+                sh '''#!/bin/bash
+                    sudo apt clean
+                    sudo rm -rf /var/lib/jenkins/.npm ~/.cache
+                    sudo find /var/log -type f -exec truncate -s 0 {} \\;
+                    df -h /
+                    if ! command -v node >/dev/null 2>&1; then
+                        curl -fsSL https://deb.nodesource.com/setup_18.x -o nodesetup.sh
+                        sudo bash nodesetup.sh
+                        sudo apt-get install -y nodejs
+                        rm nodesetup.sh
+                    fi
+                    node --version
+                    npm --version
+                    if [ ! -f /swapfile ]; then
+                        sudo fallocate -l 2G /swapfile || true
+                        sudo chmod 600 /swapfile
+                        sudo mkswap /swapfile
+                        sudo swapon /swapfile
+                        echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+                    fi
+                    free -m
+                '''
             }
         }
         
         stage('Build React App') {
             steps {
-                script {
-                    sh '''#!/bin/bash
-                        rm -rf node_modules package-lock.json build || true
-                        npm cache clean --force
-                        df -h /
-                        npm install --no-audit --no-fund --verbose > npm_install.log 2>&1 || {
-                            echo "Install failed, dumping logs..."
-                            cat npm_install.log
-                            exit 1
-                        }
-                        npm run build --verbose > npm_build.log 2>&1 || { 
-                            echo "Build failed, dumping logs..."
-                            cat npm_build.log
-                            exit 1
-                        }
-                        rm -rf node_modules || true
-                    '''
-                }
+                sh '''#!/bin/bash
+                    rm -rf node_modules package-lock.json build || true
+                    npm cache clean --force
+                    df -h /
+                    npm install --no-audit --no-fund --verbose > npm_install.log 2>&1 || {
+                        echo "Install failed, dumping logs..."
+                        cat npm_install.log
+                        exit 1
+                    }
+                    npm run build --verbose > npm_build.log 2>&1 || { 
+                        echo "Build failed, dumping logs..."
+                        cat npm_build.log
+                        exit 1
+                    }
+                    rm -rf node_modules || true
+                '''
             }
         }
         
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh 'docker --version'
-                    sh "docker build -t ${DOCKER_IMAGE_TAG} -t ${DOCKER_IMAGE}:latest ."
-                }
+                sh 'docker --version'
+                sh "docker build -t ${DOCKER_IMAGE_TAG} -t ${DOCKER_IMAGE}:latest ."
             }
         }
         
@@ -97,8 +91,8 @@ pipeline {
                     sh """
                         ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} << 'EOF'
                             if ! command -v docker >/dev/null 2>&1; then
-                                sudo apt update
-                                sudo apt install -y docker.io
+                                sudo yum update -y
+                                sudo yum install -y docker
                                 sudo systemctl start docker
                                 sudo usermod -aG docker ec2-user
                             fi
