@@ -38,16 +38,13 @@ pipeline {
                     fi
                     free -m  # Verify memory and swap
                     
-                    # Completely reset npm environment
+                    # Reset npm environment
                     rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
                     npm cache clean --force
                     mkdir -p ${NPM_CACHE_DIR}
                     
-                    # Force npm to use HTTPS registry
+                    # Set npm registry
                     npm config set registry https://registry.npmjs.org/
-                    npm config set fetch-retries 5
-                    npm config set fetch-retry-mintimeout 20000
-                    
                     df -h /  # Check disk space
                     node --version
                     npm --version
@@ -59,24 +56,23 @@ pipeline {
             steps {
                 script {
                     sh '''#!/bin/bash
-                        # Set npm cache and memory limits
-                        export npm_config_cache=${NPM_CACHE_DIR}
+                        # Set environment variables
                         export NODE_OPTIONS=--max-old-space-size=128
                         
-                        # Ensure clean slate
-                        rm -rf node_modules package-lock.json build .npmrc || true
+                        # Clean slate
+                        rm -rf node_modules package-lock.json build || true
                         npm cache clean --force
                         
-                        # Install dependencies from npm registry only
-                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                        # Install dependencies with correct cache syntax
+                        npm install --no-audit --no-fund --omit=dev --cache="${NPM_CACHE_DIR}" --verbose
                         
-                        # Verify react-scripts is installed
+                        # Verify react-scripts
                         if [ ! -f node_modules/react-scripts/package.json ]; then
                             echo "react-scripts not found, installing explicitly..."
-                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache="${NPM_CACHE_DIR}" --verbose
                         fi
                         
-                        # Build the React app
+                        # Build the app
                         npm run build
                         if [ ! -d build ]; then
                             echo "Build directory not created, failing the build..."
