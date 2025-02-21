@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"  // Confirm this
+        EC2_IP = "98.81.253.133"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -49,8 +49,8 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    # Install only react-scripts to bypass bad dependency
-                    npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    # Install react-scripts from npm registry, bypassing Git
+                    npm install react-scripts@5.0.1 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
                     ls -la  # Verify build directory exists
                     rm -rf node_modules || true
