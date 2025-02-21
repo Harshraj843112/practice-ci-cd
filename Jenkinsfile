@@ -4,17 +4,18 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"
+        EC2_IP = "98.81.253.133"  // Your EC2 IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=128'
-        NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
-        GIT_CREDENTIALS_ID = 'github-credentials'
+        NODE_OPTIONS = '--max-old-space-size=128'  // Low memory for t2.micro
+        NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"  // Local npm cache
+        GIT_CREDENTIALS_ID = 'github-credentials'  // GitHub credentials
     }
     
     stages {
         stage('Checkout') {
             steps {
                 script {
+                    // Use HTTPS with GitHub credentials
                     withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS_ID, 
                         usernameVariable: 'GIT_USERNAME', 
                         passwordVariable: 'GIT_PASSWORD')]) {
@@ -28,6 +29,7 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
+                    # Ensure swap is active (2 GB)
                     if [ ! -f /swapfile ]; then
                         sudo fallocate -l 2G /swapfile || true
                         sudo chmod 600 /swapfile
@@ -35,14 +37,12 @@ pipeline {
                         sudo swapon /swapfile
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
-                    free -m
-                    rm -rf ~/.npm ~/.cache "${NPM_CACHE_DIR}" node_modules package-lock.json build .npmrc || true
+                    free -m  # Verify memory and swap
+                    # Clean all npm and system caches
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force
-                    mkdir -p "${NPM_CACHE_DIR}"
-                    npm config set registry https://registry.npmjs.org/
-                    npm config set fetch-retries 5
-                    npm config list
-                    df -h /
+                    mkdir -p ${NPM_CACHE_DIR}
+                    df -h /  # Check disk space
                     node --version
                     npm --version
                 '''
@@ -53,45 +53,32 @@ pipeline {
             steps {
                 script {
                     sh '''#!/bin/bash
-                        set -e  # Exit on any error
+                        # Set npm cache and memory limits
+                        export npm_config_cache=${NPM_CACHE_DIR}
                         export NODE_OPTIONS=--max-old-space-size=128
                         
-                        # Clean slate
+                        # Ensure clean slate
                         rm -rf node_modules package-lock.json build || true
                         npm cache clean --force
                         
-                        # Debug: Verify environment
-                        echo "Current directory: $(pwd)"
-                        echo "Listing files before install:"
-                        ls -la
-                        echo "Contents of package.json:"
-                        cat package.json || echo "package.json not found!"
+                        # Install dependencies with HTTPS only
+                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose || {
+                            echo "NPM install failed, retrying with force..."
+                            npm install --force --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                        }
                         
-                        # Install dependencies with proper quoting
-                        npm install --no-audit --no-fund --omit=dev --cache "${NPM_CACHE_DIR}" --verbose
-                        
-                        # Verify react-scripts
-                        echo "Checking react-scripts installation:"
-                        ls -la node_modules/react-scripts 2>/dev/null || echo "react-scripts not installed!"
-                        if [ ! -f node_modules/react-scripts/bin/react-scripts.js ]; then
-                            echo "react-scripts binary not found, installing explicitly..."
-                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache "${NPM_CACHE_DIR}" --verbose
+                        # Ensure react-scripts is installed
+                        if [ ! -f node_modules/react-scripts/package.json ]; then
+                            echo "Installing react-scripts explicitly..."
+                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                         fi
                         
-                        # Build the app
-                        echo "Running npm run build..."
-                        npm run build
-                        
-                        # Verify build output
-                        echo "Checking build directory:"
-                        if [ ! -d build ]; then
-                            echo "ERROR: Build directory not created!"
-                            ls -la
-                            exit 1
-                        else
-                            echo "Build directory created successfully:"
-                            ls -la build
-                        fi
+                        # Build the React app
+                        npm run build --production || {
+                            echo "Build failed, reinstalling react-scripts and retrying..."
+                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                            npm run build --production
+                        }
                         
                         # Clean up
                         rm -rf node_modules || true
@@ -124,6 +111,7 @@ pipeline {
                 sshagent(credentials: ['ec2-ssh-credentials']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} << 'EOF'
+                            # Ensure Docker is running
                             if ! docker ps >/dev/null 2>&1; then
                                 sudo systemctl start docker || true
                             fi
@@ -144,7 +132,7 @@ pipeline {
             sh '''
                 docker logout || true
                 docker system prune -f || true
-                rm -rf node_modules build "${NPM_CACHE_DIR}" || true
+                rm -rf node_modules build ${NPM_CACHE_DIR} || true
             '''
             cleanWs()
         }
