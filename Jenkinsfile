@@ -9,6 +9,7 @@ pipeline {
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
+        GITHUB_TOKEN = credentials('github-token')  // Add GitHub token as a credential
     }
     
     stages {
@@ -33,7 +34,7 @@ pipeline {
                     free -m
                     rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force
-                    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"  # Safety net
+                    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
                     df -h /
@@ -49,9 +50,9 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
-                    ls -la  # Verify build directory exists
+                    ls -la build  # Verify build directory exists
                     rm -rf node_modules || true
                 '''
             }
