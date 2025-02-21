@@ -4,25 +4,23 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"  // Updated EC2 IP
+        EC2_IP = "98.81.253.133"  // Your EC2 IP
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'  // Low memory for t2.micro
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"  // Local npm cache
-        GIT_CREDENTIALS_ID = 'github-credentials'  // GitHub credentials ID (optional fallback)
+        GIT_CREDENTIALS_ID = 'github-credentials'  // GitHub credentials
     }
     
     stages {
         stage('Checkout') {
             steps {
                 script {
-                    try {
+                    // Use HTTPS with GitHub credentials
+                    withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS_ID, 
+                        usernameVariable: 'GIT_USERNAME', 
+                        passwordVariable: 'GIT_PASSWORD')]) {
                         git branch: 'main', 
-                            url: 'https://github.com/Harshraj843112/practice-ci-cd.git',
-                            credentialsId: env.GIT_CREDENTIALS_ID  // Try with credentials
-                    } catch (Exception e) {
-                        echo "Git credentials not found, falling back to anonymous access..."
-                        git branch: 'main', 
-                            url: 'https://github.com/Harshraj843112/practice-ci-cd.git'  // Anonymous access
+                            url: "https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/Harshraj843112/practice-ci-cd.git"
                     }
                 }
             }
@@ -39,11 +37,12 @@ pipeline {
                         sudo swapon /swapfile
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
-                    free -m  # Verify 2GB swap
-                    # Clean caches
-                    rm -rf ~/.npm ~/.cache || true
+                    free -m  # Verify memory and swap
+                    # Clean all npm and system caches
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
+                    npm cache clean --force
                     mkdir -p ${NPM_CACHE_DIR}
-                    df -h /
+                    df -h /  # Check disk space
                     node --version
                     npm --version
                 '''
@@ -53,68 +52,37 @@ pipeline {
         stage('Build React App') {
             steps {
                 script {
-                    try {
-                        withCredentials([usernamePassword(credentialsId: env.GIT_CREDENTIALS_ID, 
-                            usernameVariable: 'GIT_USERNAME', 
-                            passwordVariable: 'GIT_PASSWORD')]) {
-                            sh '''#!/bin/bash
-                                # Use local cache for npm
-                                export npm_config_cache=${NPM_CACHE_DIR}
-                                # Configure npm to use Git credentials
-                                npm config set "//github.com/:_authToken" "${GIT_PASSWORD}"
-                                # Clean and install minimal dependencies
-                                rm -rf node_modules package-lock.json build || true
-                                npm cache clean --force
-                                df -h /
-                                npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} || {
-                                    echo "NPM install failed, retrying with force..."
-                                    npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --force || {
-                                        echo "Installing react-scripts directly..."
-                                        npm install react-scripts@latest --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
-                                    }
-                                }
-                                npm run build --production || {
-                                    echo "Build failed, checking react-scripts..."
-                                    if [ ! -f node_modules/react-scripts/package.json ]; then
-                                        echo "Installing react-scripts..."
-                                        npm install react-scripts@latest --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
-                                        npm run build --production
-                                    else
-                                        exit 1
-                                    fi
-                                }
-                                # Clean up Git credentials
-                                npm config delete "//github.com/:_authToken"
-                                rm -rf node_modules || true
-                            '''
+                    sh '''#!/bin/bash
+                        # Set npm cache and memory limits
+                        export npm_config_cache=${NPM_CACHE_DIR}
+                        export NODE_OPTIONS=--max-old-space-size=128
+                        
+                        # Ensure clean slate
+                        rm -rf node_modules package-lock.json build || true
+                        npm cache clean --force
+                        
+                        # Install dependencies with HTTPS only
+                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose || {
+                            echo "NPM install failed, retrying with force..."
+                            npm install --force --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                         }
-                    } catch (Exception e) {
-                        echo "Git credentials failed, attempting anonymous npm install..."
-                        sh '''#!/bin/bash
-                            export npm_config_cache=${NPM_CACHE_DIR}
-                            rm -rf node_modules package-lock.json build || true
-                            npm cache clean --force
-                            df -h /
-                            npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} || {
-                                echo "NPM install failed, retrying with force..."
-                                npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --force || {
-                                    echo "Installing react-scripts directly..."
-                                    npm install react-scripts@latest --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
-                                }
-                            }
-                            npm run build --production || {
-                                echo "Build failed, checking react-scripts..."
-                                if [ ! -f node_modules/react-scripts/package.json ]; then
-                                    echo "Installing react-scripts..."
-                                    npm install react-scripts@latest --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
-                                    npm run build --production
-                                else
-                                    exit 1
-                                fi
-                            }
-                            rm -rf node_modules || true
-                        '''
-                    }
+                        
+                        # Ensure react-scripts is installed
+                        if [ ! -f node_modules/react-scripts/package.json ]; then
+                            echo "Installing react-scripts explicitly..."
+                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                        fi
+                        
+                        # Build the React app
+                        npm run build --production || {
+                            echo "Build failed, reinstalling react-scripts and retrying..."
+                            npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                            npm run build --production
+                        }
+                        
+                        # Clean up
+                        rm -rf node_modules || true
+                    '''
                 }
             }
         }
@@ -169,10 +137,10 @@ pipeline {
             cleanWs()
         }
         success {
-            echo "Build ${env.BUILD_NUMBER} deployed successfully in under a second (optimized)!"
+            echo "Build ${env.BUILD_NUMBER} deployed successfully!"
         }
         failure {
-            echo "Build ${env.BUILD_NUMBER} failed—please check logs and resources!"
+            echo "Build ${env.BUILD_NUMBER} failed—check logs and resources!"
         }
     }
 }
