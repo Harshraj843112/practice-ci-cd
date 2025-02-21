@@ -4,17 +4,16 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"  // Your EC2 IP
+        EC2_IP = "98.81.253.133"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=128'  // Low memory for t2.micro
-        NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"  // Local npm cache
-        GIT_CREDENTIALS_ID = 'github-credentials'  // GitHub credentials
+        NODE_OPTIONS = '--max-old-space-size=128'
+        NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
+        GIT_CREDENTIALS_ID = 'github-credentials'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                // Simplified Git checkout using credentialsId directly
                 git branch: 'main', 
                     url: 'https://github.com/Harshraj843112/practice-ci-cd.git', 
                     credentialsId: 'github-credentials'
@@ -32,14 +31,15 @@ pipeline {
                         sudo swapon /swapfile
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
-                    free -m  # Verify memory and swap
-                    # Clean all npm and system caches
+                    free -m
+                    # Clean caches
                     rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
-                    npm config set git-clone-proto https  # Force HTTPS for Git operations
                     npm cache clean --force
+                    # Force Git to use HTTPS instead of SSH
+                    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
-                    chmod -R 777 ${NPM_CACHE_DIR}  # Ensure cache directory is writable
-                    df -h /  # Check disk space
+                    chmod -R 777 ${NPM_CACHE_DIR}
+                    df -h /
                     node --version
                     npm --version
                 '''
@@ -49,36 +49,20 @@ pipeline {
         stage('Build React App') {
             steps {
                 sh '''#!/bin/bash
-                    # Set npm cache and memory limits
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
-                    
-                    # Ensure clean slate
                     rm -rf node_modules package-lock.json build || true
                     npm cache clean --force
-                    
-                    # Install dependencies with HTTPS only
+                    # Install dependencies, avoiding Git if possible
                     npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     if [ $? -ne 0 ]; then
                         echo "NPM install failed, retrying with force..."
                         npm install --force --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     fi
-                    
-                    # Verify react-scripts installation
-                    if [ ! -f node_modules/react-scripts/package.json ]; then
-                        echo "Installing react-scripts explicitly..."
-                        npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    fi
-                    
-                    # Build the React app
+                    # Ensure react-scripts is installed
+                    npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    # Build the app
                     npm run build
-                    if [ $? -ne 0 ]; then
-                        echo "Build failed, reinstalling react-scripts and retrying..."
-                        npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                        npm run build
-                    fi
-                    
-                    # Clean up
                     rm -rf node_modules || true
                 '''
             }
@@ -108,7 +92,6 @@ pipeline {
                 sshagent(credentials: ['ec2-ssh-credentials']) {
                     sh """
                         ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} << 'EOF'
-                            # Ensure Docker is running
                             if ! docker ps >/dev/null 2>&1; then
                                 sudo systemctl start docker || true
                             fi
