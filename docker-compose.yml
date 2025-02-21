@@ -8,4 +8,4 @@ services:
       - "80:80"
     environment:
       - NODE_ENV=production
-    restart: unless-stopped
+    restart: unless-stopped 
