@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "20scse1010239/my-react-app"  // Aligned with dockerHubCredentials username
-        EC2_IP = "98.81.253.133"
+        EC2_IP = "52.23.184.30"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=2048'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
