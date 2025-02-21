@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    
+     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
