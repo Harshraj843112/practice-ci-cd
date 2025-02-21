@@ -1,10 +1,10 @@
 pipeline {
-    agent any  
+    agent any
     
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
-        DOCKER_IMAGE = "20scse1010239/my-react-app"
-        EC2_IP = "52.23.184.30"
+        DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')  // ID from Jenkins credentials
+        DOCKER_IMAGE = "harshraj843112/my-react-app"
+        EC2_IP = "98.81.253.133"  // Deployment target; adjust if incorrect
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -23,7 +23,6 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
-                    # Ensure swap is active (2 GB)
                     if [ ! -f /swapfile ]; then
                         sudo fallocate -l 2G /swapfile || true
                         sudo chmod 600 /swapfile
@@ -32,10 +31,8 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m
-                    # Clean caches
                     rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force
-                    # Force Git to use HTTPS instead of SSH
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
@@ -53,16 +50,10 @@ pipeline {
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf node_modules package-lock.json build || true
                     npm cache clean --force
-                    # Install dependencies, avoiding Git if possible
                     npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    if [ $? -ne 0 ]; then
-                        echo "NPM install failed, retrying with force..."
-                        npm install --force --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    fi
-                    # Ensure react-scripts is installed
                     npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    # Build the app
                     npm run build
+                    ls -la  # Verify build directory exists
                     rm -rf node_modules || true
                 '''
             }
