@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"
+        EC2_IP = "98.81.253.133"  // Deployment target
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -31,9 +31,9 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} build || true
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force
-                    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+                    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"  # Safety net
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
                     df -h /
@@ -49,8 +49,7 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    # Install react-scripts from npm registry, bypassing Git
-                    npm install react-scripts@5.0.1 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
                     ls -la  # Verify build directory exists
                     rm -rf node_modules || true
