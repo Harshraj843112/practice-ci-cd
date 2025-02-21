@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = "harshraj843112/my-react-app"
         EC2_IP = "98.81.253.133"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=128'
+        NODE_OPTIONS = '--max-old-space-size=2048'  // 2 GB memory for Node.js
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
     }
@@ -36,11 +36,15 @@ pipeline {
         stage('Build React App') {
             steps {
                 sh '''#!/bin/bash
+                    set -e
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    export NODE_OPTIONS=--max-old-space-size=128
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose
-                    npm run build
-                    ls -la  # Verify build directory exists
+                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose || { echo "npm install failed"; exit 1; }
+                    npm run build || { echo "npm run build failed"; exit 1; }
+                    ls -la
+                    if [ ! -d "build" ]; then
+                        echo "Error: build directory not found!"
+                        exit 1
+                    fi
                 '''
             }
         }
