@@ -8,13 +8,15 @@ pipeline {
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'  // Even lower memory for t2.micro
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"  // Local npm cache
+        GIT_CREDENTIALS_ID = 'github-credentials'  // Add GitHub credentials ID
     }
     
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'main', 
-                    url: 'https://github.com/Harshraj843112/practice-ci-cd.git'
+                    url: 'https://github.com/Harshraj843112/practice-ci-cd.git',
+                    credentialsId: env.GIT_CREDENTIALS_ID  // Use GitHub credentials
             }
         }
         
@@ -45,12 +47,24 @@ pipeline {
                 sh '''#!/bin/bash
                     # Use local cache for npm
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    # Clean and install minimal dependencies
+                    # Clean and install minimal dependencies with Git credentials
                     rm -rf node_modules package-lock.json build || true
                     npm cache clean --force
                     df -h /
-                    npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
-                    npm run build --production
+                    npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} || {
+                        echo "NPM install failed, retrying with force..."
+                        npm install --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --force
+                    }
+                    npm run build --production || {
+                        echo "Build failed, checking react-scripts..."
+                        if [ ! -f node_modules/react-scripts/package.json ]; then
+                            echo "Installing react-scripts..."
+                            npm install react-scripts --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR}
+                            npm run build --production
+                        else
+                            exit 1
+                        fi
+                    }
                     rm -rf node_modules || true
                 '''
             }
