@@ -4,12 +4,11 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "98.81.253.133"  // Deployment target
+        EC2_IP = "98.81.253.133"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
-        GITHUB_TOKEN = credentials('github-token')  // Add GitHub token as a credential
     }
     
     stages {
@@ -32,9 +31,11 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build || true
+                    # Deep clean all npm-related data
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} node_modules package-lock.json build .npmrc || true
                     npm cache clean --force
-                    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+                    npm config set registry https://registry.npmjs.org/
+                    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
                     df -h /
@@ -50,9 +51,12 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --cache ${NPM_CACHE_DIR} --verbose
+                    # Install dependencies explicitly from npm registry
+                    npm install react@$npm_package_dependencies_react --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install react-dom@$npm_package_dependencies_react_dom --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
+                    npm install react-scripts@5.0.1 --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
-                    ls -la build  # Verify build directory exists
+                    ls -la  # Verify build directory exists
                     rm -rf node_modules || true
                 '''
             }
