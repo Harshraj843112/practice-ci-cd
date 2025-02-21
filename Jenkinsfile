@@ -31,7 +31,7 @@ pipeline {
                         echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
                     fi
                     free -m
-                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} build || true  # Keep node_modules if committed
+                    rm -rf ~/.npm ~/.cache ${NPM_CACHE_DIR} build || true
                     npm cache clean --force
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
@@ -49,10 +49,8 @@ pipeline {
                     export npm_config_cache=${NPM_CACHE_DIR}
                     export NODE_OPTIONS=--max-old-space-size=128
                     rm -rf build || true
-                    # Install react-scripts if node_modules isn’t committed
-                    if [ ! -d "node_modules/react-scripts" ]; then
-                        npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
-                    fi
+                    # Install only react-scripts to bypass bad dependency
+                    npm install react-scripts@5.0.1 --no-audit --no-fund --omit=dev --cache ${NPM_CACHE_DIR} --verbose
                     npm run build
                     ls -la  # Verify build directory exists
                     rm -rf node_modules || true
