@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-# Remove default Nginx page (optional)
+# Remove default Nginx page (optional) 
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy React build files
