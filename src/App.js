@@ -14,6 +14,8 @@ function App() {
                 </p>
                 <p> Simplifying Healthcare with GudMed: 🔧
                 At GudMed, we believe that technology should enhance the work you already do, not complicate it. Our solution is designed to keep the process familiar and straightforward while bringing the benefits of digitalization right to your fingertips.</p>
+
+                <p> Hellow jee</p>
             </main>
         </div>
     );
