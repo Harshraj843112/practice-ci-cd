@@ -79,7 +79,7 @@ pipeline {
                     sh """
                         echo "Deploying to EC2 as \$SSH_USER"
                         ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
-                            set -e  # Exit on any error
+                            set -e
                             echo "Checking Docker service..."
                             if ! docker ps >/dev/null 2>&1; then
                                 echo "Starting Docker..."
@@ -91,7 +91,7 @@ pipeline {
                             echo "Pulling Docker image ${DOCKER_IMAGE_TAG}..."
                             docker pull ${DOCKER_IMAGE_TAG} || { echo "Failed to pull image"; exit 1; }
                             echo "Running new container..."
-                            docker run -d --name my-react-app -p 80:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
+                            docker run -d --name my-react-app -p 80:80 -p 443:443 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
                             echo "Pruning unused images..."
                             docker image prune -f
                             echo "Deployment completed successfully"
