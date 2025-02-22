@@ -16,7 +16,7 @@ pipeline {
             steps {
                 git branch: 'main', 
                     url: 'https://github.com/Harshraj843112/practice-ci-cd.git', 
-                    credentialsId: 'github-credentials'
+                    credentialsId: "${GIT_CREDENTIALS_ID}"
             }
         }
         
@@ -78,16 +78,24 @@ pipeline {
                     usernameVariable: 'SSH_USER')]) {
                     sh """
                         echo "Deploying to EC2 as \$SSH_USER"
-                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << "EOF"
+                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
+                            set -e  # Exit on any error
+                            echo "Checking Docker service..."
                             if ! docker ps >/dev/null 2>&1; then
-                                sudo systemctl start docker || true
+                                echo "Starting Docker..."
+                                sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
                             fi
+                            echo "Stopping and removing existing container..."
                             docker stop my-react-app || true
                             docker rm my-react-app || true
-                            docker pull ${DOCKER_IMAGE_TAG}
-                            docker run -d --name my-react-app -p 80:80 ${DOCKER_IMAGE_TAG}
+                            echo "Pulling Docker image ${DOCKER_IMAGE_TAG}..."
+                            docker pull ${DOCKER_IMAGE_TAG} || { echo "Failed to pull image"; exit 1; }
+                            echo "Running new container..."
+                            docker run -d --name my-react-app -p 80:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
+                            echo "Pruning unused images..."
                             docker image prune -f
-                        EOF
+                            echo "Deployment completed successfully"
+EOF
                     """
                 }
             }
