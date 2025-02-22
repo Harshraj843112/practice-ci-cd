@@ -1,12 +1,12 @@
 pipeline {
-    agent any 
+    agent any
     
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
-        DOCKER_IMAGE = "20scse1010239/my-react-app"
-        EC2_IP = "3.95.156.64"
+        DOCKER_IMAGE = "harshraj843112/my-react-app"
+        EC2_IP = "3.95.156.64"  // Updated to your deployment target
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=2048'
+        NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
     }
@@ -36,15 +36,11 @@ pipeline {
         stage('Build React App') {
             steps {
                 sh '''#!/bin/bash
-                    set -e
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose || { echo "npm install failed"; exit 1; }
-                    npm run build || { echo "npm run build failed"; exit 1; }
-                    ls -la
-                    if [ ! -d "build" ]; then
-                        echo "Error: build directory not found!"
-                        exit 1
-                    fi
+                    export NODE_OPTIONS=--max-old-space-size=128
+                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose
+                    npm run build
+                    ls -la  # Verify build directory exists
                 '''
             }
         }
@@ -73,12 +69,9 @@ pipeline {
         
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-credentials', 
-                    keyFileVariable: 'SSH_KEY', 
-                    usernameVariable: 'SSH_USER')]) {
+                sshagent(['ec2-ssh-credentials']) {
                     sh """
-                        echo "Deploying to EC2 as \$SSH_USER"
-                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << "EOF"
+                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} bash << 'EOF'
                             if ! docker ps >/dev/null 2>&1; then
                                 sudo systemctl start docker || true
                             fi
