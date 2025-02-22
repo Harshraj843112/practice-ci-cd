@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "harshraj843112/my-react-app"
-        EC2_IP = "3.95.156.64"  // Updated to your deployment target
+        EC2_IP = "3.95.156.64"  // Deployment target
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=128'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
@@ -71,7 +71,7 @@ pipeline {
             steps {
                 sshagent(['ec2-ssh-credentials']) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} bash << 'EOF'
+                        ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} << 'EOF'
                             if ! docker ps >/dev/null 2>&1; then
                                 sudo systemctl start docker || true
                             fi
