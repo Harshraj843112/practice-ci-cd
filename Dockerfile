@@ -1,15 +1,14 @@
-# Build stage: Use Node.js 20 with increased memory and Alpine for efficiency
-FROM node:20-alpine AS builder
+# Build stage
+FROM node:18 AS builder
 WORKDIR /app
-ENV NODE_OPTIONS=--max-old-space-size=2048
 COPY package*.json ./
-RUN npm install --production --no-audit --no-fund
+RUN npm install
 COPY . .
 RUN npm run build
 
-# Runtime stage: Use lightweight Nginx for serving static files
+# Runtime stage
 FROM nginx:alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 443
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
