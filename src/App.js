@@ -1,24 +1,47 @@
+/* eslint-disable react/jsx-no-undef */
 import React from 'react';
-import Header from './components/Header';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './Pages/Home';
+import ForHospital from "./Pages/ForHospital/ForHospitalHome";
+import 'swiper/css';
+import 'swiper/css/navigation';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import 'swiper/css/pagination';
+import Navbar from './components/Navbar/Navbar';
+import Footer from './components/Footer';
+import AboutUsHome from './components/AboutUs/AboutUsHome';
+import ServicesHome from './components/Services/ServicesHome';
+import ContactInfoCard from './components/Contact/ContactInfoCard';
+import ContactHome from './components/Contact/ContactHome';
+import DoctorHome from './Doctor/DoctorHome';
+import IPDHome from './IPD/IPD';
+import OPDHome from './components/OPD/OPDHome';
+import TeamHome from './components/Team/TeamHome';
+import NewFooter from './components/NewFooter';
+import Patient from './components/Patient';
 
-function App() {
-    return (
-        <div className="min-h-screen bg-gray-100">
-            <Header />
-            <main className="container mx-auto p-4">
-                <h1 className="text-3xl font-bold text-center text-blue-600">
-                    Welcome to My React App
-                </h1>
-                <p className="mt-4 text-lg text-gray-700">
-                    Built with React.js and Tailwind CSS, deployed on AWS EC2 via Jenkins CI/CD.
-                </p>
-                <p> Simplifying Healthcare with GudMed: 🔧
-                At GudMed, we believe that technology should enhance the work you already do, not complicate it. Our solution is designed to keep the process familiar and straightforward while bringing the benefits of digitalization right to your fingertips.</p>
-
-                <p> Hellow jee</p>
-            </main>
-        </div>
-    );
-}
+const App = () => {
+  return (
+    <Router> {/* ✅ Wrap everything inside BrowserRouter */}
+      <div>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/hospital" element={<ForHospital />} />
+          <Route path="/about" element={<AboutUsHome />} />
+          <Route path="/services" element={<ServicesHome />} />
+          <Route path="/contacts" element={<ContactHome />} />
+          <Route path="/team" element={<TeamHome />} />
+          <Route path="/doctors" element={<DoctorHome />} />
+          <Route path="/hospital/ipd" element={<IPDHome />} />
+          <Route path="/hospital/opd" element={<OPDHome />} />
+          <Route path="/patients" element={<Patient />} />
+        </Routes>
+        {/* <Footer /> */}
+        <NewFooter />
+      </div>
+    </Router>
+  );
+};
 
 export default App;
