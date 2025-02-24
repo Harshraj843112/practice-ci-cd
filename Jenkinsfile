@@ -85,14 +85,6 @@ pipeline {
                                 echo "Starting Docker..."
                                 sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
                             fi
-                            echo "Stopping any processes using port 80..."
-                            PIDS=\$(sudo lsof -ti:80)
-                            if [ -n "\$PIDS" ]; then
-                                echo "Stopping processes: \$PIDS"
-                                sudo kill -9 \$PIDS
-                            else
-                                echo "No processes found using port 80"
-                            fi
                             echo "Stopping and removing existing container..."
                             docker stop my-react-app || true
                             docker rm my-react-app || true
