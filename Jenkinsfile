@@ -23,8 +23,8 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
-                    rm -rf ${NPM_CACHE_DIR} node_modules package-lock.json build || true
-                    npm cache clean --force
+                    rm -rf ${NPM_CACHE_DIR} node_modules build || true
+                    # Do not delete package-lock.json
                     npm config set registry https://registry.npmjs.org/
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
@@ -38,7 +38,7 @@ pipeline {
                 sh '''#!/bin/bash
                     set -e
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose || { echo "npm install failed"; exit 1; }
+                    npm ci --registry https://registry.npmjs.org/ --no-audit --no-fund || { echo "npm ci failed"; exit 1; }
                     npm run build || { echo "npm run build failed"; exit 1; }
                     ls -la
                     if [ ! -d "build" ]; then
