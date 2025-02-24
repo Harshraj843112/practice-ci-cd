@@ -1,14 +1,13 @@
-# Build stage
 FROM node:18-alpine AS builder
 WORKDIR /app
+ENV NODE_OPTIONS=--max-old-space-size=2048
 COPY package*.json ./
-RUN npm install --production # Install only production dependencies
+RUN npm install --production
 COPY . .
 RUN npm run build
 
-# Runtime stage
 FROM nginx:alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80  # Only expose 80 for now since HTTPS isn’t active
+EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
