@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = "20scse1010239/my-react-app"
         EC2_IP = "54.163.150.233"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=1024'  // Reduced for free tier (1 GB RAM)
+        NODE_OPTIONS = '--max-old-space-size=4096'  // Increased for larger apps
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
     }
@@ -23,22 +23,12 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
-                    set -e
                     rm -rf ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force  # Only if needed, or remove
-                    npm config set registry https://registry.npmmirror.com/  # Faster mirror for free tier
+                    npm config set registry https://registry.npmmirror.com/  # Faster mirror
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
-
-                    # Install Yarn if not already installed
-                    if ! command -v yarn &> /dev/null; then
-                        echo "Installing Yarn..."
-                        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
-                        echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
-                        sudo apt update
-                        sudo apt install -y yarn
-                    fi
                 '''
             }
         }
@@ -48,7 +38,7 @@ pipeline {
                 sh '''#!/bin/bash
                     set -e
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    yarn install --registry https://registry.npmmirror.com/ --no-audit --no-fund --frozen-lockfile || { echo "Yarn install failed"; exit 1; }
+                    yarn install --registry https://registry.npmmirror.com/ --no-audit --no-fund || { echo "Yarn install failed"; exit 1; }
                     yarn build || { echo "Yarn build failed"; exit 1; }
                 '''
             }
