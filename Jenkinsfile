@@ -23,12 +23,22 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''#!/bin/bash
+                    set -e
                     rm -rf ${NPM_CACHE_DIR} node_modules package-lock.json build || true
                     npm cache clean --force  # Only if needed, or remove
                     npm config set registry https://registry.npmmirror.com/  # Faster mirror for free tier
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
+
+                    # Install Yarn if not already installed
+                    if ! command -v yarn &> /dev/null; then
+                        echo "Installing Yarn..."
+                        curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+                        echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+                        sudo apt update
+                        sudo apt install -y yarn
+                    fi
                 '''
             }
         }
