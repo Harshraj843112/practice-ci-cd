@@ -6,7 +6,7 @@ pipeline {
         DOCKER_IMAGE = "20scse1010239/my-react-app"
         EC2_IP = "54.163.150.233"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-        NODE_OPTIONS = '--max-old-space-size=2048'
+        NODE_OPTIONS = '--max-old-space-size=1024'  // Reduced for free tier (1 GB RAM)
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
     }
@@ -24,8 +24,8 @@ pipeline {
             steps {
                 sh '''#!/bin/bash
                     rm -rf ${NPM_CACHE_DIR} node_modules package-lock.json build || true
-                    npm cache clean --force
-                    npm config set registry https://registry.npmjs.org/
+                    npm cache clean --force  # Only if needed, or remove
+                    npm config set registry https://registry.npmmirror.com/  # Faster mirror for free tier
                     git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
                     mkdir -p ${NPM_CACHE_DIR}
                     chmod -R 777 ${NPM_CACHE_DIR}
@@ -38,13 +38,8 @@ pipeline {
                 sh '''#!/bin/bash
                     set -e
                     export npm_config_cache=${NPM_CACHE_DIR}
-                    npm install --registry https://registry.npmjs.org/ --no-audit --no-fund --omit=dev --verbose || { echo "npm install failed"; exit 1; }
-                    npm run build || { echo "npm run build failed"; exit 1; }
-                    ls -la
-                    if [ ! -d "build" ]; then
-                        echo "Error: build directory not found!"
-                        exit 1
-                    fi
+                    yarn install --registry https://registry.npmmirror.com/ --no-audit --no-fund --frozen-lockfile || { echo "Yarn install failed"; exit 1; }
+                    yarn build || { echo "Yarn build failed"; exit 1; }
                 '''
             }
         }
