@@ -4,13 +4,13 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "20scse1010239/my-react-app"
-        EC2_IP = "46.202.164.138"  // IP is already correct
+        EC2_IP = "3.95.156.64"
         DOCKER_IMAGE_TAG = "${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
         NODE_OPTIONS = '--max-old-space-size=2048'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
     }
-     
+    
     stages {
         stage('Checkout') {
             steps {
@@ -73,12 +73,12 @@ pipeline {
         
         stage('Deploy to EC2') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'ec2-ssh-credentials1',  // Updated to ec2-ssh-credentials1
-                    usernameVariable: 'SSH_USER', 
-                    passwordVariable: 'SSH_PASS')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-credentials', 
+                    keyFileVariable: 'SSH_KEY', 
+                    usernameVariable: 'SSH_USER')]) {
                     sh """
                         echo "Deploying to EC2 as \$SSH_USER"
-                        sshpass -p "\$SSH_PASS" ssh -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
+                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
                             set -e  # Exit on any error
                             echo "Checking Docker service..."
                             if ! docker ps >/dev/null 2>&1; then
