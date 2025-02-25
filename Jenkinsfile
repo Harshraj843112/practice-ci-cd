@@ -42,12 +42,12 @@ pipeline {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-credentials', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                     sh """
                         echo "Deploying build files to EC2 as \$SSH_USER"
-                        scp -i "\$SSH_KEY" -o StrictHostKeyChecking=no -r build/* "\${SSH_USER}@\${EC2_IP}:/var/www/html/"
+                        scp -i "\$SSH_KEY" -o StrictHostKeyChecking=no -r build/* "\${SSH_USER}@\${EC2_IP}:/var/www/html/build/"
                         ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
-                            sudo chown -R www-data:www-data /var/www/html/
-                            sudo chmod -R 755 /var/www/html/
+                            sudo chown -R www-data:www-data /var/www/html/build/
+                            sudo chmod -R 755 /var/www/html/build/
                             sudo systemctl restart apache2
-                            echo "Deployment completed successfully. Check http://${EC2_IP}"
+                            echo "Deployment completed successfully. Check https://${EC2_IP}"
 EOF
                     """
                 }
@@ -56,10 +56,10 @@ EOF
     }
     post {
         always { 
-            sh 'rm -rf node_modules build ${NPM_CACHE_DIR} || true'; 
+            sh 'rm -rf node_modules build ${NPM_CACHE_DIR} || true'
             cleanWs() 
         }
-        success { echo "Build ${env.BUILD_NUMBER} deployed successfully to http://${EC2_IP}!" }
+        success { echo "Build ${env.BUILD_NUMBER} deployed successfully to https://${EC2_IP}!" }
         failure { echo "Build ${env.BUILD_NUMBER} failed—check logs and resources!" }
     }
 }
