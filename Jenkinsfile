@@ -79,22 +79,22 @@ pipeline {
                     sh """
                         echo "Deploying to EC2 as \$SSH_USER"
                         ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
-                            set -e  # Exit on any error
+                            set -e
                             echo "Checking Docker service..."
                             if ! docker ps >/dev/null 2>&1; then
                                 echo "Starting Docker..."
                                 sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
                             fi
-                            echo "Stopping and removing existing container..."
-                            docker stop my-react-app || true
-                            docker rm my-react-app || true
+                            echo "Stopping and removing existing test container..."
+                            docker stop my-react-app-test || true
+                            docker rm my-react-app-test || true
                             echo "Pulling Docker image ${DOCKER_IMAGE_TAG}..."
                             docker pull ${DOCKER_IMAGE_TAG} || { echo "Failed to pull image"; exit 1; }
-                            echo "Running new container..."
-                            docker run -d --name my-react-app -p 80:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
+                            echo "Running new test container on port 8000..."
+                            docker run -d --name my-react-app-test -p 8000:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
                             echo "Pruning unused images..."
                             docker image prune -f
-                            echo "Deployment completed successfully"
+                            echo "Test deployment completed successfully. Check http://${EC2_IP}:8000"
 EOF
                     """
                 }
@@ -112,7 +112,7 @@ EOF
             cleanWs()
         }
         success {
-            echo "Build ${env.BUILD_NUMBER} deployed successfully!"
+            echo "Build ${env.BUILD_NUMBER} deployed successfully to http://${EC2_IP}:8000!"
         }
         failure {
             echo "Build ${env.BUILD_NUMBER} failed—check logs and resources!"
