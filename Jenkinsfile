@@ -85,16 +85,16 @@ pipeline {
                                 echo "Starting Docker..."
                                 sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
                             fi
-                            echo "Stopping and removing existing test container..."
-                            docker stop my-react-app-test || true
-                            docker rm my-react-app-test || true
+                            echo "Stopping and removing existing container..."
+                            docker stop my-react-app || true
+                            docker rm my-react-app || true
                             echo "Pulling Docker image ${DOCKER_IMAGE_TAG}..."
                             docker pull ${DOCKER_IMAGE_TAG} || { echo "Failed to pull image"; exit 1; }
-                            echo "Running new test container on port 8000..."
-                            docker run -d --name my-react-app-test -p 8000:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
+                            echo "Running new container on port 8000..."
+                            docker run -d --name my-react-app -p 8000:80 ${DOCKER_IMAGE_TAG} || { echo "Failed to run container"; exit 1; }
                             echo "Pruning unused images..."
                             docker image prune -f
-                            echo "Test deployment completed successfully. Check http://${EC2_IP}:8000"
+                            echo "Deployment completed successfully. Check http://${EC2_IP}:8000 directly or http://${EC2_IP} via Nginx."
 EOF
                     """
                 }
