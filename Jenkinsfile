@@ -1,6 +1,6 @@
 pipeline {
     agent any
-     
+    
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerHubCredentials')
         DOCKER_IMAGE = "20scse1010239/my-react-app"
@@ -9,6 +9,7 @@ pipeline {
         NODE_OPTIONS = '--max-old-space-size=2048'
         NPM_CACHE_DIR = "${env.WORKSPACE}/.npm-cache"
         GIT_CREDENTIALS_ID = 'github-credentials'
+        SSH_CREDENTIALS_ID = 'ec2-ssh-credentials'
     }
     
     stages {
@@ -73,17 +74,17 @@ pipeline {
         
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-credentials', 
+                withCredentials([sshUserPrivateKey(credentialsId: "${SSH_CREDENTIALS_ID}", 
                     keyFileVariable: 'SSH_KEY', 
                     usernameVariable: 'SSH_USER')]) {
                     sh """
-                        echo "Deploying to EC2 as \$SSH_USER"
-                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "\${SSH_USER}@\${EC2_IP}" << EOF
-                            set -e  # Exit on any error
-                            echo "Checking Docker service..."
+                        echo "Deploying to EC2 at ${EC2_IP} as \$SSH_USER"
+                        ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no "root@${EC2_IP}" << 'EOF'
+                            set -e
+                            echo "Connected to EC2 successfully"
                             if ! docker ps >/dev/null 2>&1; then
-                                echo "Starting Docker..."
-                                sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
+                                echo "Docker not running, attempting to start..."
+                                systemctl start docker || sudo systemctl start docker || { echo "Failed to start Docker"; exit 1; }
                             fi
                             echo "Stopping and removing existing container..."
                             docker stop my-react-app || true
