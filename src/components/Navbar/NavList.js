@@ -12,7 +12,7 @@ const NavList = [
   },
   {
     id: "3",
-    list: "For Hospital",
+    list: "For Hospitals",
     link: "/hospital", // Linking to the hospital page
     dropdown: [
       {
