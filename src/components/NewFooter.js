@@ -24,9 +24,12 @@ const NewFooter = () => {
                 &copy; 2025 <strong>Gud Medicare Solutions Private Limited</strong>
               </p>
               <p className="text-lg sm:text-xl">All rights reserved &reg;</p>
-              <div className="mt-2 text-sm sm:text-base">
-                <div className="flex justify-center gap-2">Privacy Policy Terms & Conditions</div>
+              <div className="flex justify-center gap-2">
+                <Link to="/privacy-policy" className="hover:underline hover:text-gray-300">Privacy Policy</Link>
+                <span>|</span>
+                <Link to="/terms-conditions" className="hover:underline hover:text-gray-300">Terms & Conditions</Link>
               </div>
+
             </div>
 
             {/* For larger screens */}
@@ -35,11 +38,12 @@ const NewFooter = () => {
                 &copy; 2025 <strong>Gud Medicare Solutions Private Limited</strong> <br />
                 All rights reserved &reg;
               </p>
-              <div className="mt-2 text-sm sm:text-base">
-                <div className="flex flex-wrap md:justify-center lg:justify-start gap-2 xl:-ml-20">
-                  Privacy Policy Terms & Conditions
-                </div>
+              <div className="flex flex-wrap md:justify-center lg:justify-start gap-2 xl:-ml-20">
+                <Link to="/privacy-policy" className="hover:underline hover:text-gray-300">Privacy Policy</Link>
+                <span>|</span>
+                <Link to="/terms-conditions" className="hover:underline hover:text-gray-300">Terms & Conditions</Link>
               </div>
+
             </div>
           </div>
 
