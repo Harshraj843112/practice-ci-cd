@@ -11,6 +11,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import PrivacyPolicy from './components/PrivacyPolicy';
 
 // Lazy-load every page/component exactly as originally imported
 const Home             = lazy(() => import('./Pages/Home'));
@@ -49,6 +50,10 @@ export default function App() {
           <Route 
             path="/terms-conditions" 
             element={<TermsConditions />} 
+          />
+          <Route 
+            path="/privacy-policy" 
+            element={<PrivacyPolicy />} 
           />
           {/* The ContactInfoCard import remains available if you use it inside these pages */}
         </Routes>
